@@ -1,0 +1,4 @@
+1,1,0,main.isValid
+2,-1,0,main.userId
+3,2,0,main.bookId
+4,3,0,main.purchased
