@@ -1,0 +1,34 @@
+// circuit using paths 
+pragma circom 2.0.0;
+
+include "circomlib/poseidon.circom"; // Using Poseidon hash function for efficient ZKP hashing
+
+template PurchaseProof() {
+    // Input: Merkle Root of the tree containing all purchases
+    signal input merkleRoot;
+    
+    // Input: Path to the Merkle leaf that proves purchase
+    signal input pathElements[256];
+    signal input pathIndices[256];
+    
+    // Public signals to prove a purchase
+    signal input bookHash;    // Hash of the book title
+    signal input userId;      // User ID
+    signal input commitment;  // Commitment: Hash(bookHash, userId)
+
+    // Verify that commitment matches the hashed inputs
+    signal commitmentCalc = Poseidon([bookHash, userId]);
+    commitment === commitmentCalc;
+
+    // Merkle proof for verifying that the purchase is in the tree
+    component path = MerkleTreeInclusionProof(256, Poseidon);
+    path.merkleRoot <== merkleRoot;
+    path.leaf <== commitment;
+    path.pathElements <== pathElements;
+    path.pathIndices <== pathIndices;
+
+    // Ensure proof validation
+    path.verify();
+}
+
+component main = PurchaseProof();

@@ -1,6 +1,6 @@
 pragma circom 2.0.0;
 
-include "../../../node_modules/circomlib/circuits/poseidon.circom"; // Ensure the path to Poseidon is correct
+include "../../../node_modules/circomlib/circuits/poseidon.circom"; 
 
 // Template for hashing two inputs
 template SimpleHash() {
@@ -22,8 +22,8 @@ template PurchaseProof() {
     signal input userId;       // User ID
 
     // Optional Merkle proof inputs - can be empty
-    signal input pathElements[0];  // Empty array for path elements
-    signal input pathIndices[0];   // Empty array for path indices
+    signal input pathElements[0];
+    signal input pathIndices[0]; 
 
     signal output commitment;  // Commitment output
 
