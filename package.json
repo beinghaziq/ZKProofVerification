@@ -12,6 +12,8 @@
   "description": "",
   "dependencies": {
     "circom2": "^0.2.19",
+    "circomlib": "^2.0.5",
+    "circomlibjs": "^0.1.7",
     "did-jwt": "^8.0.4",
     "ethers": "^6.13.4",
     "snarkjs": "^0.7.5"

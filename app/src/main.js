@@ -5,6 +5,7 @@ import { Wallet } from 'ethers';
 
 import { createJWT }  from 'did-jwt';
 import { createProof, verifyProof } from './snarkjsHelper.js'
+import * as circomlibjs from "circomlibjs";
 
 /**
  * Here the userId means cognito id, rest userId is an internally generated id from PLN_Users.user_id
@@ -49,20 +50,208 @@ import { createProof, verifyProof } from './snarkjsHelper.js'
             console.error("Error issuing credential:", error);
         }
 
+    const poseidon = await circomlibjs.buildPoseidon();
+    const bookTitle = "Zero Knowledge Proof in Action";
+    const userId = 42;
+    const encoder = new TextEncoder();
+    const bookTitleBytes = encoder.encode(bookTitle);
+    const bookHash = poseidon.F.toString(poseidon([poseidon.F.e(bookTitleBytes)]));
+    
+    // Create the unique commitment
+    const commitment = poseidon.F.toString(poseidon([bookHash, userId]));
 
-        const input = { userId: 12, bookId: 1123, purchased: 1 };
+    console.log(`Book Hash: ${bookHash}`);
+    console.log(`Commitment: ${commitment}`);
 
+    const purchases = [
+        { bookHash: bookHash, userId: userId },
+      ];
+
+      // Generate commitments (leaves) for each purchase
+    const leaves = purchases.map((purchase) => {
+        return poseidon.F.toString(poseidon([purchase.bookHash, purchase.userId]));
+      });
+
+      
+    const merkleRoot = buildMerkleTree(leaves);
+
+    const { pathElements, pathIndices } = getMerklePath(0, leaves);
+    
+        // const input = { userId: 12, bookId: 1123, purchased: 1 };
+        const input = {
+                    merkleRoot,
+                    pathElements,
+                    pathIndices,
+                    bookHash,
+                    userId
+                };
+        console.log(input, "input here")
         const { proof, publicSignals } = await createProof(
             input,
             wasmPath,
             zkeyPath
         );
        
-        console.log("Proof:", proof);
-        console.log("Public signals:", publicSignals);
 
         await verifyProof(proof, publicSignals);
 
 }
 
 main()
+
+const hashPair = async(left, right) => {
+    const poseidon = await circomlibjs.buildPoseidon();
+    return poseidon.F.toString(poseidon([poseidon.F.e(left), poseidon.F.e(right)]));
+  }
+
+// const stuffWithHash = async() => {
+//     const poseidon = await circomlibjs.buildPoseidon();
+//     const bookTitle = "Zero Knowledge Proof in Action";
+//     const userId = 42;
+//     const encoder = new TextEncoder();
+//     const bookTitleBytes = encoder.encode(bookTitle);
+//     // Convert the book title to a hash for the book
+//     const bookHash = poseidon.F.toString(poseidon([poseidon.F.e(bookTitleBytes)]));
+    
+//     // Create the unique commitment
+//     const commitment = poseidon.F.toString(poseidon([bookHash, userId]));
+
+//     console.log(`Book Hash: ${bookHash}`);
+//     console.log(`Commitment: ${commitment}`);
+
+//     const purchases = [
+//         { bookHash: bookHash, userId: 1 },
+//       ];
+
+
+
+//       // Generate commitments (leaves) for each purchase
+//     const leaves = purchases.map((purchase) => {
+//         return poseidon.F.toString(poseidon([purchase.bookHash, purchase.userId]));
+//       });
+
+//     console.log(leaves, "leaves")
+
+      
+//   const merkleRoot = buildMerkleTree(leaves);
+//   console.log("Merkle Root:", merkleRoot);
+
+//   const { pathElements, pathIndices } = getMerklePath(0, leaves);
+//   console.log("Path Elements:", pathElements);
+//   console.log("Path Indices:", pathIndices);
+// }
+
+
+
+
+// stuffWithHash()
+
+
+
+// const purchases = [
+//     { bookHash: poseidon.F.e("Book A"), userId: 1 },
+//     { bookHash: poseidon.F.e("Book B"), userId: 2 },
+//     { bookHash: poseidon.F.e("Book C"), userId: 3 },
+//     { bookHash: poseidon.F.e("Book D"), userId: 4 },
+//   ];
+
+
+
+//   // Generate commitments (leaves) for each purchase
+// const leaves = purchases.map((purchase) => {
+//     return poseidon.F.toString(poseidon([purchase.bookHash, purchase.userId]));
+//   });
+
+
+
+//   // Function to compute the Poseidon hash of two leaves
+// function hashPair(left, right) {
+//     return poseidon.F.toString(poseidon([poseidon.F.e(left), poseidon.F.e(right)]));
+//   }
+  
+  // Build the Merkle Tree
+  const buildMerkleTree = (leaves) => {
+    let level = leaves;
+    while (level.length > 1) {
+      // If the number of nodes is odd, duplicate the last node
+      if (level.length % 2 !== 0) level.push(level[level.length - 1]);
+  
+      // Hash each pair of nodes to form the next level
+      level = level.reduce((nextLevel, _, i, arr) => {
+        if (i % 2 === 0) nextLevel.push(hashPair(arr[i], arr[i + 1]));
+        return nextLevel;
+      }, []);
+    }
+  
+    return level[0]; // Root of the Merkle tree
+  }
+  
+
+const getMerklePath = (leafIndex, leaves) => {
+    let pathElements = [];
+    let pathIndices = [];
+    let level = leaves;
+    
+    while (level.length > 1) {
+      if (level.length % 2 !== 0) level.push(level[level.length - 1]);
+  
+      const isRightNode = leafIndex % 2;
+      const siblingIndex = isRightNode ? leafIndex - 1 : leafIndex + 1;
+  
+      // Collect sibling and index information
+      pathElements.push(level[siblingIndex]);
+      pathIndices.push(isRightNode);
+  
+      // Move up to the next level
+      leafIndex = Math.floor(leafIndex / 2);
+      level = level.reduce((nextLevel, _, i, arr) => {
+        if (i % 2 === 0) nextLevel.push(hashPair(arr[i], arr[i + 1]));
+        return nextLevel;
+      }, []);
+    }
+  
+    return { pathElements, pathIndices };
+  }
+  
+
+  
+
+
+
+// const snarkjs = require("snarkjs");
+// const fs = require("fs");
+
+// // User inputs
+// const bookTitle = "Some Book";
+// const userId = 1234;
+
+// // Hash the book title and user ID (in practice, use a hash function like Poseidon)
+// const bookHash = poseidonHash(bookTitle); // Use Poseidon hash here
+// const commitment = poseidonHash([bookHash, userId]);
+
+// // Merkle tree parameters (set up based on your existing purchase records)
+// const merkleRoot = "0xabc123...";  // Example Merkle root from your purchase tree
+// const pathElements = [/* Merkle path elements */];
+// const pathIndices = [/* Merkle path indices */];
+
+// (async () => {
+//     // Create witness data
+//     const input = {
+//         merkleRoot,
+//         pathElements,
+//         pathIndices,
+//         bookHash,
+//         userId,
+//         commitment
+//     };
+
+//     // Generate proof
+//     const { proof, publicSignals } = await snarkjs.plonk.fullProve(
+//         input,
+//         "purchaseProof_js/purchaseProof.wasm",
+//         "purchaseProof.zkey"
+//     );
+
+//     fs.writeFileSync("proof.json", JSON.stringify(proof));
+//     fs.writeFileSync("public.json", JSON.stringify(publicSignals));
+// })();
