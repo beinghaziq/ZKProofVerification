@@ -68,7 +68,6 @@ const main = async () => {
 		return poseidon.F.toString(poseidon([purchase.bookHash, purchase.userId]));
 	});
 
-
 	const merkleRoot = buildMerkleTree(leaves);
 
 	const { pathElements, pathIndices } = getMerklePath(0, leaves);
